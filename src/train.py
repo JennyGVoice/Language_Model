@@ -56,24 +56,32 @@ def main():
         print("Step:", step, "Train Loss:", loss.item())
 
         if step % eval_interval == 0:
-            val_loss = calculate_loss(model, val_loader, device)
-            ppl = calculate_ppl(model, val_loader, device)
+            print("Eval begin...")
+            # fast evaluation (1 batch only)
+            model.eval()
+            with torch.no_grad():
+                xb, yb = next(iter(val_loader))
+                xb, yb = xb.to(device), yb.to(device)
+                _, val_loss = model(xb, yb)
+            model.train()
+
+            ppl = torch.exp(val_loss).item()
 
             print(f"step {step} | train loss {loss.item():.4f} "
-                  f"| val loss {val_loss:.4f} | ppl {ppl:.2f}")
+                f"| val loss {val_loss:.4f} | ppl {ppl:.2f}")
 
-            writer.add_scalar("val/loss", val_loss, step)
+            writer.add_scalar("val/loss", val_loss.item(), step)
             writer.add_scalar("val/ppl", ppl, step)
 
-            # save checkpoint
             ckpt_path = f"experiments/checkpoints/step_{step}.pt"
-            torch.save({"model": model.state_dict(),
-                        "optimizer": optimizer.state_dict(),
-                        "step": step},
-                       ckpt_path)
+            torch.save({
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "step": step
+            }, ckpt_path)
 
             print("Saved:", ckpt_path)
-
+        print("step incremented")
         step += 1
 
     writer.close()
