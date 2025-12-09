@@ -18,8 +18,8 @@ def main():
     train_dataset = CharDataset(text, block_size=128, split="train")
     val_dataset   = CharDataset(text, block_size=128, split="val")
 
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-    val_loader   = DataLoader(val_dataset, batch_size=64)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=0)
+    val_loader   = DataLoader(val_dataset,   batch_size=64, shuffle=False, num_workers=0)
 
     # initial model
     device = "cuda" if torch.cuda.is_available() else "cpu"
