@@ -46,18 +46,18 @@ def main():
         x, y = x.to(device), y.to(device)
         _, loss = model(x, y)
 
-        print("Step:", step, "Loss:", loss.item())
+        # print("Step:", step, "Loss:", loss.item())
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         writer.add_scalar("train/loss", loss.item(), step)
-        print("Step:", step, "Train Loss:", loss.item())
+        # print("Step:", step, "Train Loss:", loss.item())
 
         if step % eval_interval == 0:
-            print("Eval begin...")
-            # fast evaluation (1 batch only)
+            print("Begin evaluation\n")
+            # fast evaluation on one batch
             model.eval()
             with torch.no_grad():
                 xb, yb = next(iter(val_loader))
@@ -81,7 +81,6 @@ def main():
             }, ckpt_path)
 
             print("Saved:", ckpt_path)
-        print("step incremented")
         step += 1
 
     writer.close()
