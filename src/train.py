@@ -39,17 +39,21 @@ def main():
     step = 0
 
     for x, y in train_loader:
+        print(f"Training step {step+1} / {max_iters}", end="\r")
         if step > max_iters:
             break
 
         x, y = x.to(device), y.to(device)
         _, loss = model(x, y)
 
+        print("Step:", step, "Loss:", loss.item())
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
         writer.add_scalar("train/loss", loss.item(), step)
+        print("Step:", step, "Train Loss:", loss.item())
 
         if step % eval_interval == 0:
             val_loss = calculate_loss(model, val_loader, device)
