@@ -2,9 +2,6 @@ import torch
 from torch.utils.data import Dataset
 
 class CharDataset(Dataset):
-    """
-    PyTorch Dataset for training and evaluating a character-level GPT model.
-    """
 
     def __init__(self, text, block_size=128, split="train"):
         self.block_size = block_size
