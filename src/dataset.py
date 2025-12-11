@@ -30,5 +30,8 @@ class CharDataset(Dataset):
         y = chunk[1:]
         return x, y
 
+    def encode(self, s):
+        return [self.stoi[c] for c in s]
+
     def decode(self, ids):
-        return "".join([self.itos[i] for i in ids])
+        return ''.join([self.itos[i] for i in ids])
