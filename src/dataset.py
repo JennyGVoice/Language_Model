@@ -29,7 +29,7 @@ class CharDataset(Dataset):
         x = chunk[:-1]
         y = chunk[1:]
         return x, y
-
+    
     def encode(self, s):
         return [self.stoi[c] for c in s]
 
