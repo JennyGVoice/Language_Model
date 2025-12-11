@@ -28,13 +28,15 @@ class AttentionHead(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, n_head, n_embd, block_size):
+    def __init__(self, n_head, n_embd, block_size, dropout):
         super().__init__()
         head_size = n_embd // n_head
         self.heads = nn.ModuleList(
             [AttentionHead(head_size, n_embd, block_size) for _ in range(n_head)]
         )
         self.proj = nn.Linear(n_embd, n_embd)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x):
-        return self.proj(torch.cat([h(x) for h in self.heads], dim=-1))
+        out = self.proj(torch.cat([h(x) for h in self.heads], dim=-1))
+        return self.dropout(out)

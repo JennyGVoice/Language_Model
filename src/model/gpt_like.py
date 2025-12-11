@@ -3,11 +3,13 @@ import torch.nn as nn
 from .block import TransformerBlock
 
 class GPTLanguageModel(nn.Module):
-    def __init__(self, vocab_size, n_embd=768, block_size=128, n_head=8, n_layer=12):
+    def __init__(self, vocab_size, n_embd=768, block_size=128, n_head=8, n_layer=12, dropout=0.1):
         super().__init__()
 
         self.token_embed = nn.Embedding(vocab_size, n_embd)
         self.pos_embed = nn.Embedding(block_size, n_embd)
+
+        self.dropout = nn.Dropout(dropout)
 
         self.blocks = nn.Sequential(
             *[TransformerBlock(n_embd, n_head, block_size) for _ in range(n_layer)]
@@ -23,6 +25,7 @@ class GPTLanguageModel(nn.Module):
         tok = self.token_embed(idx)
         pos = self.pos_embed(torch.arange(T, device=idx.device))
         x = tok + pos
+        x = self.dropout(x)
 
         x = self.blocks(x)
         x = self.ln_f(x)
