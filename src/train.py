@@ -1,6 +1,7 @@
 import torch
 import os
 import requests
+from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
@@ -11,7 +12,6 @@ from src.model.metrics import calculate_loss, calculate_ppl
 
 def main():
 
-    # load dataset
     url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
     text = requests.get(url).text
 
@@ -21,43 +21,42 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True, num_workers=0)
     val_loader   = DataLoader(val_dataset,   batch_size=64, shuffle=False, num_workers=0)
 
-    # initial model
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using device:", device)
 
     model = GPTLanguageModel(train_dataset.vocab_size).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 
-    # TensorBoard
     writer = SummaryWriter("experiments/runs")
     os.makedirs("experiments/checkpoints", exist_ok=True)
 
-    # train model
     max_iters = 6000
     eval_interval = 200
 
+    best_val_loss = float("inf")
     step = 0
 
+    progress_bar = tqdm(total=max_iters, desc="Training", ncols=100)
+
     for x, y in train_loader:
-        print(f"Training step {step+1} / {max_iters}", end="\r")
-        if step > max_iters:
+        if step >= max_iters:
             break
 
         x, y = x.to(device), y.to(device)
         _, loss = model(x, y)
 
-        # print("Step:", step, "Loss:", loss.item())
-
         optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
 
         writer.add_scalar("train/loss", loss.item(), step)
-        # print("Step:", step, "Train Loss:", loss.item())
+
+        progress_bar.set_postfix({"train_loss": f"{loss.item():.4f}"})
+        progress_bar.update(1)
 
         if step % eval_interval == 0:
-            print("Begin evaluation\n")
-            # fast evaluation on one batch
+            print("\nBegin evaluation")
             model.eval()
             with torch.no_grad():
                 xb, yb = next(iter(val_loader))
@@ -68,21 +67,28 @@ def main():
             ppl = torch.exp(val_loss).item()
 
             print(f"step {step} | train loss {loss.item():.4f} "
-                f"| val loss {val_loss:.4f} | ppl {ppl:.2f}")
+                  f"| val loss {val_loss:.4f} | ppl {ppl:.2f}")
 
             writer.add_scalar("val/loss", val_loss.item(), step)
             writer.add_scalar("val/ppl", ppl, step)
 
-            ckpt_path = f"experiments/checkpoints/step_{step}.pt"
+            ckpt_path = f"/content/drive/MyDrive/Language_Model/checkpoints/step_{step}.pt"
             torch.save({
                 "model": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
                 "step": step
             }, ckpt_path)
-
             print("Saved:", ckpt_path)
+
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                best_path = "/content/drive/MyDrive/Language_Model/checkpoints/best_model.pt"
+                torch.save(model.state_dict(), best_path)
+                print(f"New BEST model saved at step {step}")
+
         step += 1
 
+    progress_bar.close()
     writer.close()
     print("Training finished.")
 
