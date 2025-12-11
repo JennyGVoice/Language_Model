@@ -27,10 +27,9 @@ def main():
     model = GPTLanguageModel(train_dataset.vocab_size).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 
-    writer = SummaryWriter("experiments/runs")
-    os.makedirs("experiments/checkpoints", exist_ok=True)
+    writer = SummaryWriter("/content/drive/MyDrive/Language_Model/runs")
 
-    max_iters = 6000
+    max_iters = 5000
     eval_interval = 200
 
     best_val_loss = float("inf")
