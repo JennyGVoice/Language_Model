@@ -8,10 +8,12 @@ from torch.utils.tensorboard import SummaryWriter
 from src.dataset import CharDataset
 from src.model.gpt_like import GPTLanguageModel
 from src.model.metrics import calculate_loss, calculate_ppl
+import math
 
 
 def main():
 
+    # load dataset
     url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
     text = requests.get(url).text
 
@@ -24,17 +26,29 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print("Using device:", device)
 
+    # initial model, optimizer and scheduler
     model = GPTLanguageModel(train_dataset.vocab_size).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 
+    # TensorBoard writer
     writer = SummaryWriter("/content/drive/MyDrive/Language_Model/runs")
 
-    max_iters = 5000
+    max_iters = 3000
+    warmup_steps = 200
     eval_interval = 200
+
+    # learning rate scheduler
+    def lr_lambda(step):
+        if step < warmup_steps:
+            return step / warmup_steps
+        return 0.5 * (1 + math.cos(math.pi * (step - warmup_steps) / (max_iters - warmup_steps)))
+
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
     best_val_loss = float("inf")
     step = 0
 
+    # training loop
     progress_bar = tqdm(total=max_iters, desc="Training", ncols=100)
 
     for x, y in train_loader:
@@ -46,15 +60,19 @@ def main():
 
         optimizer.zero_grad()
         loss.backward()
+        # gradient clipping
         total_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         writer.add_scalar("train/grad_norm", total_norm, step)
         optimizer.step()
+        scheduler.step()
+        writer.add_scalar("train/lr", optimizer.param_groups[0]["lr"], step)
 
         writer.add_scalar("train/loss", loss.item(), step)
 
         progress_bar.set_postfix({"train_loss": f"{loss.item():.4f}"})
         progress_bar.update(1)
 
+        # evaluation loop
         if step % eval_interval == 0:
             print("\nBegin evaluation")
             model.eval()
@@ -80,6 +98,7 @@ def main():
             }, ckpt_path)
             print("Saved:", ckpt_path)
 
+            # save best model
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 best_path = "/content/drive/MyDrive/Language_Model/checkpoints/best_model.pt"
